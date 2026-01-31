@@ -288,13 +288,25 @@ app.get("/verify", async (req, res) => {
       [code]
     );
 
-    const usedAt = last.rows[0].used_at
-      ? new Date(last.rows[0].used_at).toLocaleString("ar-SA")
-      : null;
+   const formatOptions = {
+  timeZone: "Asia/Riyadh",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+  hour12: true, // لو تبي AM/PM
+};
 
-    const lastCheckedAt = last.rows[0].last_checked_at
-      ? new Date(last.rows[0].last_checked_at).toLocaleString("ar-SA")
-      : "—";
+const usedAt = last.rows[0].used_at
+  ? new Date(last.rows[0].used_at).toLocaleString("en-US", formatOptions)
+  : null;
+
+const lastCheckedAt = last.rows[0].last_checked_at
+  ? new Date(last.rows[0].last_checked_at).toLocaleString("en-US", formatOptions)
+  : "—";
+
 
     return res.send(
       renderResultPage({
