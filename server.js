@@ -41,7 +41,7 @@ function extractUuid(input) {
     const u = new URL(raw);
     const code = u.searchParams.get("code");
     if (code) {
-      const m = code.match(uuidRegex);
+      const m = String(code).match(uuidRegex);
       if (m) return m[0];
     }
   } catch (_) {}
@@ -183,26 +183,56 @@ h1,p{color:#000}
 <div id="msg" class="msg"></div>
 <div id="err" class="err"></div>
 </div>
+
 <script>
-const startBtn=document.getElementById("startBtn");
-const msg=document.getElementById("msg");
-const err=document.getElementById("err");
+const startBtn = document.getElementById("startBtn");
+const msg = document.getElementById("msg");
+const err = document.getElementById("err");
 let qr;
-startBtn.onclick=async()=>{
-  msg.textContent="";err.textContent="";startBtn.disabled=true;
-  try{
-    if(!qr) qr=new Html5Qrcode("reader");
-    const cams=await Html5Qrcode.getCameras();
-    if(!cams.length) throw "no camera";
-    await qr.start({deviceId:{exact:cams[cams.length-1].id}}, {fps:10,qrbox:250}, text=>{
-      msg.textContent="تم قراءة الكود... جاري التحقق";
-      const m=text.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
-      if(!m){ err.textContent="تعذر قراءة الكود"; startBtn.disabled=false; return;}
-      window.location.href="/verify?code="+m[0];
-    });
-  }catch{
-    err.textContent="تعذر تشغيل الكاميرا";
-    startBtn.disabled=false;
+let handled = false; // ✅ يمنع تكرار القراءة
+
+startBtn.onclick = async () => {
+  msg.textContent = "";
+  err.textContent = "";
+  startBtn.disabled = true;
+  handled = false;
+
+  try {
+    if (!qr) qr = new Html5Qrcode("reader");
+    const cams = await Html5Qrcode.getCameras();
+    if (!cams || !cams.length) throw new Error("no_camera");
+
+    await qr.start(
+      { deviceId: { exact: cams[cams.length - 1].id } },
+      { fps: 10, qrbox: 250 },
+      async (text) => {
+        if (handled) return;      // ✅ تجاهل أي قراءة ثانية
+        handled = true;
+
+        msg.textContent = "تم قراءة الكود... جاري التحقق";
+
+        // ✅ استخرج UUID حتى لو النص رابط كامل
+        const m = String(text).match(
+          /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i
+        );
+
+        if (!m) {
+          err.textContent = "تعذر قراءة الكود";
+          startBtn.disabled = false;
+          handled = false;
+          try { await qr.stop(); } catch(e){}
+          return;
+        }
+
+        // ✅ أوقف الكاميرا قبل التحويل (مهم جدًا)
+        try { await qr.stop(); } catch(e){}
+
+        window.location.href = "/verify?code=" + m[0];
+      }
+    );
+  } catch (e) {
+    err.textContent = "تعذر تشغيل الكاميرا";
+    startBtn.disabled = false;
   }
 };
 </script>
@@ -213,12 +243,15 @@ startBtn.onclick=async()=>{
 // Verify
 app.get("/verify", async (req, res) => {
   const code = extractUuid(req.query.code);
+
   if (!code) {
-    return res.send(renderResultPage({
-      title:"❌ كود غير صحيح",
-      message:"تعذر قراءة الكود",
-      type:"bad"
-    }));
+    return res.send(
+      renderResultPage({
+        title: "❌ كود غير صحيح",
+        message: "تعذر قراءة الكود",
+        type: "bad",
+      })
+    );
   }
 
   try {
@@ -226,21 +259,30 @@ app.get("/verify", async (req, res) => {
       "SELECT batch_id, used_at FROM product_codes WHERE uuid=$1",
       [code]
     );
+
     if (!exists.rowCount) {
-      return res.send(renderResultPage({
-        title:"❌ كود غير صحيح",
-        message:"الكود غير موجود في النظام",
-        type:"bad"
-      }));
+      return res.send(
+        renderResultPage({
+          title: "❌ كود غير صحيح",
+          message: "الكود غير موجود في النظام",
+          type: "bad",
+        })
+      );
     }
 
-    await pool.query("UPDATE product_codes SET last_checked_at=NOW() WHERE uuid=$1",[code]);
+    // تحديث آخر قراءة دائمًا
+    await pool.query(
+      "UPDATE product_codes SET last_checked_at=NOW() WHERE uuid=$1",
+      [code]
+    );
 
+    // محاولة تفعيل أول مرة فقط
     const first = await pool.query(
       "UPDATE product_codes SET used_at=NOW() WHERE uuid=$1 AND used_at IS NULL RETURNING used_at",
       [code]
     );
 
+    // جلب الأوقات بعد التحديث
     const last = await pool.query(
       "SELECT used_at,last_checked_at FROM product_codes WHERE uuid=$1",
       [code]
@@ -250,22 +292,28 @@ app.get("/verify", async (req, res) => {
       ? new Date(last.rows[0].used_at).toLocaleString("ar-SA")
       : null;
 
-    const lastCheckedAt = new Date(last.rows[0].last_checked_at).toLocaleString("ar-SA");
+    const lastCheckedAt = last.rows[0].last_checked_at
+      ? new Date(last.rows[0].last_checked_at).toLocaleString("ar-SA")
+      : "—";
 
-    return res.send(renderResultPage({
-      title: first.rowCount ? "✅ المنتج أصلي" : "⚠️ مستخدم سابقًا",
-      message: first.rowCount ? "تم تفعيل الكود بنجاح" : "تم استخدام هذا الكود سابقًا",
-      type: first.rowCount ? "good" : "warn",
-      batchId: exists.rows[0].batch_id,
-      usedAt,
-      lastCheckedAt
-    }));
-  } catch {
-    return res.send(renderResultPage({
-      title:"⚠️ خطأ",
-      message:"حدث خطأ غير متوقع",
-      type:"warn"
-    }));
+    return res.send(
+      renderResultPage({
+        title: first.rowCount ? "✅ المنتج أصلي" : "⚠️ مستخدم سابقًا",
+        message: first.rowCount ? "تم تفعيل الكود بنجاح" : "تم استخدام هذا الكود سابقًا",
+        type: first.rowCount ? "good" : "warn",
+        batchId: exists.rows[0].batch_id,
+        usedAt,
+        lastCheckedAt,
+      })
+    );
+  } catch (e) {
+    return res.send(
+      renderResultPage({
+        title: "⚠️ خطأ",
+        message: "حدث خطأ غير متوقع",
+        type: "warn",
+      })
+    );
   }
 });
 
