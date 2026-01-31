@@ -23,366 +23,251 @@ function escapeHtml(str) {
     .replaceAll("'", "&#039;");
 }
 
+/* ✅ استخراج UUID سواء كان:
+   - UUID مباشر
+   - رابط فيه ?code=
+*/
+function extractUuid(input) {
+  const raw = String(input || "").trim();
+  const uuidRegex =
+    /\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/i;
+
+  // UUID مباشر
+  const direct = raw.match(uuidRegex);
+  if (direct) return direct[0];
+
+  // رابط وفيه code
+  try {
+    const u = new URL(raw);
+    const code = u.searchParams.get("code");
+    if (code) {
+      const m = code.match(uuidRegex);
+      if (m) return m[0];
+    }
+  } catch (_) {}
+
+  // نص عام فيه code=
+  const match = raw.match(/[?&]code=([^&#]+)/i);
+  if (match) {
+    const decoded = decodeURIComponent(match[1]);
+    const m = decoded.match(uuidRegex);
+    if (m) return m[0];
+  }
+
+  return "";
+}
+
 function renderResultPage({ title, message, type, batchId, usedAt, lastCheckedAt }) {
-  // ألوان الحالات (للنتيجة)
   const accent =
     type === "good" ? "#16a34a" : type === "warn" ? "#ca8a04" : "#dc2626";
 
   return `<!doctype html>
 <html lang="ar" dir="rtl">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>تحقق من المنتج</title>
-  <style>
-    :root{
-      --brown:#F5DEB3;     /* بني الخلفية */
-      --green:#63aa98;     /* لون الكبسة */
-      --gold:#b48a2f;      /* ذهبي العنوان */
-      --white:#ffffff;
-    }
-    body{
-      margin:0;
-      font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;
-      background:var(--brown);
-      color:#0f172a;
-    }
-    .topbar{
-      background:var(--white);
-      padding:18px 18px;
-      text-align:center;
-      font-weight:800;
-      font-size:34px;
-      color:var(--gold);
-      letter-spacing:.2px;
-    }
-    .wrap{max-width:560px;margin:0 auto;padding:18px}
-    .card{
-      border-radius:18px;
-      padding:18px;
-      background:rgba(255,255,255,.10);
-      border:1px solid rgba(255,255,255,.18);
-      box-shadow:0 10px 30px rgba(0,0,0,.08);
-      backdrop-filter: blur(2px);
-       color:#000;
-    }
-    .badge{
-      display:inline-block;
-      padding:8px 12px;
-      border-radius:999px;
-      font-weight:900;
-      font-size:14px;
-      color:#fff;
-      background:${accent};
-      border:1px solid rgba(255,255,255,.25);
-    }
-   .card h1{
-  margin:12px 0 8px;
-  font-size:22px;
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>تحقق من المنتج</title>
+<style>
+:root{
+  --brown:#F5DEB3;
+  --green:#63aa98;
+  --gold:#b48a2f;
+  --white:#ffffff;
+}
+body{
+  margin:0;
+  font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;
+  background:var(--brown);
+}
+.topbar{
+  background:var(--white);
+  padding:18px;
+  text-align:center;
+  font-weight:800;
+  font-size:34px;
+  color:var(--gold);
+}
+.wrap{max-width:560px;margin:0 auto;padding:18px}
+.card{
+  border-radius:18px;
+  padding:18px;
+  background:rgba(255,255,255,.5);
+  border:1px solid rgba(0,0,0,.1);
+  box-shadow:0 10px 30px rgba(0,0,0,.08);
   color:#000;
 }
-
-  .card p{
-  margin:0 0 10px;
-  line-height:1.8;
-  font-size:16px;
-  color:#000;
+.badge{
+  display:inline-block;
+  padding:8px 12px;
+  border-radius:999px;
+  font-weight:900;
+  font-size:14px;
+  color:#fff;
+  background:${accent};
 }
-
-    .card .meta{
+.card h1{color:#000;font-size:22px;margin:12px 0 8px}
+.card p{color:#000;font-size:16px;line-height:1.8}
+.card .meta{
   margin-top:12px;
   padding-top:12px;
-  border-top:1px dashed rgba(0,0,0,.25);
+  border-top:1px dashed rgba(0,0,0,.3);
   font-size:14px;
   color:#000;
-  line-height:1.9;
-  opacity:.95;
 }
-
-    .btn{
-      margin-top:14px;
-      display:block;
-      text-align:center;
-      text-decoration:none;
-      padding:14px 16px;
-      border-radius:14px;
-      border:none;
-      background:var(--green);
-      color:#fff;
-      font-weight:900;
-      font-size:16px;
-    }
-  </style>
+.card b{color:#000}
+.btn{
+  margin-top:14px;
+  display:block;
+  text-align:center;
+  padding:14px;
+  border-radius:14px;
+  background:var(--green);
+  color:#fff;
+  font-weight:900;
+  text-decoration:none;
+}
+</style>
 </head>
 <body>
-  <div class="topbar">الزيت الأفغاني</div>
-
-  <div class="wrap">
-    <div class="card">
-      <span class="badge">${escapeHtml(title)}</span>
-      <h1>${escapeHtml(message)}</h1>
-
-      ${batchId ? `<p>Batch: <b>${escapeHtml(batchId)}</b></p>` : ``}
-
-      <div class="meta">
-        ${usedAt ? `وقت أول استخدام: <b>${escapeHtml(usedAt)}</b><br/>` : ``}
-        آخر قراءة للكود: <b>${escapeHtml(lastCheckedAt || "—")}</b>
-      </div>
-
-      <a class="btn" href="/scan">إعادة فحص منتج</a>
+<div class="topbar">الزيت الأفغاني</div>
+<div class="wrap">
+  <div class="card">
+    <span class="badge">${escapeHtml(title)}</span>
+    <h1>${escapeHtml(message)}</h1>
+    ${batchId ? `<p>Batch: <b>${escapeHtml(batchId)}</b></p>` : ``}
+    <div class="meta">
+      ${usedAt ? `وقت أول استخدام: <b>${escapeHtml(usedAt)}</b><br>` : ``}
+      آخر قراءة للكود: <b>${escapeHtml(lastCheckedAt || "—")}</b>
     </div>
+    <a class="btn" href="/scan">إعادة فحص منتج</a>
   </div>
+</div>
 </body>
 </html>`;
 }
 
-  
-
-// صفحة scan بسيطة (اختيارية) — لو ما تبيها قلّي أشيلها
+// صفحة المسح
 app.get("/scan", (req, res) => {
-  res.setHeader("Content-Type", "text/html; charset=utf-8");
   res.send(`<!doctype html>
 <html lang="ar" dir="rtl">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>تحقق من المنتج</title>
-  <style>
-    :root{
-      --brown:#F5DEB3;     /* بني الخلفية */
-      --green:#63aa98;     /* لون الكبسة */
-      --gold:#b48a2f;      /* ذهبي العنوان */
-      --white:#ffffff;
-      --red:#dc2626;
-    }
-    body{
-      margin:0;
-      font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;
-      background:var(--brown);
-    }
-    .topbar{
-      background:var(--white);
-      padding:18px 18px;
-      text-align:center;
-      font-weight:800;
-      font-size:34px;
-      color:var(--gold);
-      letter-spacing:.2px;
-    }
-    .wrap{max-width:560px;margin:0 auto;padding:18px}
-    .card{
-      border-radius:18px;
-      padding:18px;
-      background:transparent;
-    }
-    h1{
-      margin:0 0 8px;
-      font-size:22px;
-      color:#fff;   /* تحقق من المنتج أبيض */
-      font-weight:900;
-    }
-    p{
-      margin:0 0 14px;
-      line-height:1.8;
-      color:#fff;   /* النص اللي تحته أبيض */
-      font-size:16px;
-      opacity:.95;
-    }
-    .btn{
-      width:100%;
-      border:0;
-      padding:16px 16px;
-      border-radius:14px;
-      background:var(--green); /* نفس الأخضر */
-      color:#fff;
-      font-weight:900;
-      font-size:18px;
-      cursor:pointer;
-    }
-    #reader{
-      margin-top:14px;
-      border-radius:16px;
-      overflow:hidden;
-      background:rgba(255,255,255,.12);
-      border:1px solid rgba(255,255,255,.25);
-    }
-    .msg{
-      margin-top:12px;
-      font-size:14px;
-      color:#fff; /* رسالة النجاح خليها أبيض */
-      font-weight:800;
-    }
-    .err{
-      margin-top:12px;
-      font-size:14px;
-      color:var(--red); /* رسالة الخطأ أحمر */
-      font-weight:900;
-    }
-  </style>
-  <script src="https://unpkg.com/html5-qrcode"></script>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>تحقق من المنتج</title>
+<style>
+:root{
+  --brown:#F5DEB3;
+  --green:#63aa98;
+  --gold:#b48a2f;
+  --white:#ffffff;
+  --red:#dc2626;
+}
+body{margin:0;font-family:system-ui;background:var(--brown)}
+.topbar{background:#fff;padding:18px;text-align:center;font-weight:800;font-size:34px;color:var(--gold)}
+.wrap{max-width:560px;margin:0 auto;padding:18px}
+h1,p{color:#000}
+.btn{width:100%;padding:16px;border-radius:14px;background:var(--green);color:#fff;font-size:18px;font-weight:900;border:0}
+#reader{margin-top:14px}
+.msg{margin-top:10px;color:#000;font-weight:800}
+.err{margin-top:10px;color:var(--red);font-weight:900}
+</style>
+<script src="https://unpkg.com/html5-qrcode"></script>
 </head>
 <body>
-  <div class="topbar">الزيت الأفغاني</div>
-
-  <div class="wrap">
-    <div class="card">
-      <h1>تحقق من المنتج</h1>
-      <p>امسح رمز QR الموجود على العبوة للتأكد من الأصالة.</p>
-
-      <button id="startBtn" class="btn">بدء المسح بالكاميرا</button>
-
-      <div id="reader"></div>
-
-      <div id="msg" class="msg"></div>
-      <div id="err" class="err"></div>
-    </div>
-  </div>
-
+<div class="topbar">الزيت الأفغاني</div>
+<div class="wrap">
+<h1>تحقق من المنتج</h1>
+<p>امسح رمز QR الموجود على العبوة</p>
+<button id="startBtn" class="btn">بدء المسح بالكاميرا</button>
+<div id="reader"></div>
+<div id="msg" class="msg"></div>
+<div id="err" class="err"></div>
+</div>
 <script>
-  const startBtn = document.getElementById("startBtn");
-  const msg = document.getElementById("msg");
-  const err = document.getElementById("err");
-  let qr;
-
-  startBtn.addEventListener("click", async () => {
-    msg.textContent = "";
-    err.textContent = "";
-    startBtn.disabled = true;
-
-    try {
-      if(!qr) qr = new Html5Qrcode("reader");
-
-      const cams = await Html5Qrcode.getCameras();
-      if(!cams || cams.length === 0) throw new Error("no_camera");
-
-      const camId = cams[cams.length - 1].id; // الخلفية غالبًا
-
-      await qr.start(
-        { deviceId: { exact: camId } },
-        { fps: 10, qrbox: { width: 250, height: 250 } },
-        async (decodedText) => {
-          msg.textContent = "✅ تم قراءة الكود بنجاح… جاري التحقق";
-          try { await qr.stop(); } catch(e){}
-
-          const url = new URL("/verify", window.location.origin);
-          url.searchParams.set("code", decodedText.trim());
-          window.location.href = url.toString();
-        }
-      );
-
-    } catch (e) {
-      startBtn.disabled = false;
-      // ✅ مثل ما طلبت حرفيًا
-      err.textContent = "تعذر تشغيل الكاميرا";
-    }
-  });
+const startBtn=document.getElementById("startBtn");
+const msg=document.getElementById("msg");
+const err=document.getElementById("err");
+let qr;
+startBtn.onclick=async()=>{
+  msg.textContent="";err.textContent="";startBtn.disabled=true;
+  try{
+    if(!qr) qr=new Html5Qrcode("reader");
+    const cams=await Html5Qrcode.getCameras();
+    if(!cams.length) throw "no camera";
+    await qr.start({deviceId:{exact:cams[cams.length-1].id}}, {fps:10,qrbox:250}, text=>{
+      msg.textContent="تم قراءة الكود... جاري التحقق";
+      const m=text.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
+      if(!m){ err.textContent="تعذر قراءة الكود"; startBtn.disabled=false; return;}
+      window.location.href="/verify?code="+m[0];
+    });
+  }catch{
+    err.textContent="تعذر تشغيل الكاميرا";
+    startBtn.disabled=false;
+  }
+};
 </script>
 </body>
 </html>`);
 });
 
-// Verify endpoint
+// Verify
 app.get("/verify", async (req, res) => {
-  const code = String(req.query.code || "").trim();
-
+  const code = extractUuid(req.query.code);
   if (!code) {
-    return res.status(400).send(
-      renderResultPage({
-        title: "❌ كود غير موجود",
-        message: "الرجاء مسح QR أو إدخال كود صحيح.",
-        type: "bad",
-        lastCheckedAt: "—",
-      })
-    );
+    return res.send(renderResultPage({
+      title:"❌ كود غير صحيح",
+      message:"تعذر قراءة الكود",
+      type:"bad"
+    }));
   }
 
   try {
-    // 1) هل الكود موجود؟ (نجيب used_at و batch_id)
     const exists = await pool.query(
-      `SELECT batch_id, used_at FROM product_codes WHERE uuid = $1 LIMIT 1`,
+      "SELECT batch_id, used_at FROM product_codes WHERE uuid=$1",
       [code]
     );
-
-    if (exists.rowCount === 0) {
-      return res.status(404).send(
-        renderResultPage({
-          title: "❌ الكود غير صحيح",
-          message: "هذا الكود غير موجود في النظام.",
-          type: "bad",
-          lastCheckedAt: "—",
-        })
-      );
+    if (!exists.rowCount) {
+      return res.send(renderResultPage({
+        title:"❌ كود غير صحيح",
+        message:"الكود غير موجود في النظام",
+        type:"bad"
+      }));
     }
 
-    // 2) تحديث last_checked_at دائمًا (كل قراءة)
-    await pool.query(
-      `UPDATE product_codes SET last_checked_at = NOW() WHERE uuid = $1`,
+    await pool.query("UPDATE product_codes SET last_checked_at=NOW() WHERE uuid=$1",[code]);
+
+    const first = await pool.query(
+      "UPDATE product_codes SET used_at=NOW() WHERE uuid=$1 AND used_at IS NULL RETURNING used_at",
       [code]
     );
 
-    // 3) نحاول أول استخدام (نفس منطقك)
-    const update = await pool.query(
-      `UPDATE product_codes
-       SET used_at = NOW()
-       WHERE uuid = $1 AND used_at IS NULL
-       RETURNING batch_id, used_at`,
-      [code]
-    );
-
-    // 4) نجيب آخر قراءة (بعد التحديث)
     const last = await pool.query(
-      `SELECT last_checked_at, used_at FROM product_codes WHERE uuid = $1 LIMIT 1`,
+      "SELECT used_at,last_checked_at FROM product_codes WHERE uuid=$1",
       [code]
     );
 
-    const lastCheckedAt = last.rows[0]?.last_checked_at
-      ? new Date(last.rows[0].last_checked_at).toLocaleString("ar-SA")
-      : "—";
-
-    const usedAt = last.rows[0]?.used_at
+    const usedAt = last.rows[0].used_at
       ? new Date(last.rows[0].used_at).toLocaleString("ar-SA")
       : null;
 
-    // أول مرة
-    if (update.rowCount === 1) {
-      return res.send(
-        renderResultPage({
-          title: "✅ المنتج أصلي",
-          message: "تم تفعيل الكود الآن بنجاح.",
-          type: "good",
-          batchId: update.rows[0].batch_id || exists.rows[0].batch_id,
-          usedAt, // وقت أول استخدام (الآن)
-          lastCheckedAt,
-        })
-      );
-    }
+    const lastCheckedAt = new Date(last.rows[0].last_checked_at).toLocaleString("ar-SA");
 
-    // مستخدم سابقًا
-    return res.send(
-      renderResultPage({
-        title: "⚠️ مستخدم سابقًا",
-        message: "تم استخدام هذا الكود سابقًا.",
-        type: "warn",
-        batchId: exists.rows[0].batch_id,
-        usedAt, // وقت أول استخدام
-        lastCheckedAt, // آخر قراءة
-      })
-    );
-  } catch (err) {
-    console.error("DB ERROR:", err);
-    return res.status(500).send(
-      renderResultPage({
-        title: "⚠️ خطأ بالخادم",
-        message: "حدث خطأ، حاول مرة أخرى لاحقًا.",
-        type: "warn",
-        lastCheckedAt: "—",
-      })
-    );
+    return res.send(renderResultPage({
+      title: first.rowCount ? "✅ المنتج أصلي" : "⚠️ مستخدم سابقًا",
+      message: first.rowCount ? "تم تفعيل الكود بنجاح" : "تم استخدام هذا الكود سابقًا",
+      type: first.rowCount ? "good" : "warn",
+      batchId: exists.rows[0].batch_id,
+      usedAt,
+      lastCheckedAt
+    }));
+  } catch {
+    return res.send(renderResultPage({
+      title:"⚠️ خطأ",
+      message:"حدث خطأ غير متوقع",
+      type:"warn"
+    }));
   }
 });
 
-// IMPORTANT: dynamic port
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log("Running on port", PORT);
-});
+app.listen(PORT, () => console.log("Running on port", PORT));
