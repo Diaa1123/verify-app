@@ -24,16 +24,9 @@ function escapeHtml(str) {
 }
 
 function renderResultPage({ title, message, type, batchId, usedAt, lastCheckedAt }) {
-  // Theme (light / clean)
+  // ألوان الحالات (للنتيجة)
   const accent =
     type === "good" ? "#16a34a" : type === "warn" ? "#ca8a04" : "#dc2626";
-
-  const bgTint =
-    type === "good"
-      ? "rgba(22,163,74,.08)"
-      : type === "warn"
-      ? "rgba(202,138,4,.10)"
-      : "rgba(220,38,38,.08)";
 
   return `<!doctype html>
 <html lang="ar" dir="rtl">
@@ -42,48 +35,104 @@ function renderResultPage({ title, message, type, batchId, usedAt, lastCheckedAt
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>تحقق من المنتج</title>
   <style>
-    body{margin:0;background:#fff;color:#0f172a;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial}
-    .topbar{padding:14px 18px;border-bottom:1px solid #e5e7eb;text-align:center;font-weight:800}
+    :root{
+      --brown:#caa56c;     /* بني الخلفية */
+      --green:#63aa98;     /* لون الكبسة */
+      --gold:#b48a2f;      /* ذهبي العنوان */
+      --white:#ffffff;
+    }
+    body{
+      margin:0;
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;
+      background:var(--brown);
+      color:#0f172a;
+    }
+    .topbar{
+      background:var(--white);
+      padding:18px 18px;
+      text-align:center;
+      font-weight:800;
+      font-size:34px;
+      color:var(--gold);
+      letter-spacing:.2px;
+    }
     .wrap{max-width:560px;margin:0 auto;padding:18px}
-    .card{border:1px solid #e5e7eb;border-radius:16px;padding:18px;background:#fff;box-shadow:0 10px 30px rgba(0,0,0,.06)}
-    .badge{display:inline-block;padding:6px 10px;border-radius:999px;font-weight:800;font-size:13px;color:${accent};background:${bgTint};border:1px solid rgba(15,23,42,.08)}
-    h1{margin:12px 0 8px;font-size:22px}
-    p{margin:0 0 10px;line-height:1.7;font-size:16px}
-    .meta{margin-top:12px;padding-top:12px;border-top:1px dashed #e5e7eb;font-size:14px;color:#334155;line-height:1.8}
-    .btn{margin-top:14px;display:block;text-align:center;text-decoration:none;padding:12px 14px;border-radius:12px;border:1px solid #e5e7eb;background:#0f172a;color:#fff;font-weight:800}
-    .small{margin-top:10px;font-size:12px;color:#64748b;text-align:center}
+    .card{
+      border-radius:18px;
+      padding:18px;
+      background:rgba(255,255,255,.10);
+      border:1px solid rgba(255,255,255,.18);
+      box-shadow:0 10px 30px rgba(0,0,0,.08);
+      backdrop-filter: blur(2px);
+    }
+    .badge{
+      display:inline-block;
+      padding:8px 12px;
+      border-radius:999px;
+      font-weight:900;
+      font-size:14px;
+      color:#fff;
+      background:${accent};
+      border:1px solid rgba(255,255,255,.25);
+    }
+    h1{
+      margin:12px 0 8px;
+      font-size:22px;
+      color:#fff;
+    }
+    p{
+      margin:0 0 10px;
+      line-height:1.8;
+      font-size:16px;
+      color:#fff;
+    }
+    .meta{
+      margin-top:12px;
+      padding-top:12px;
+      border-top:1px dashed rgba(255,255,255,.35);
+      font-size:14px;
+      color:#fff;
+      line-height:1.9;
+      opacity:.95;
+    }
+    .btn{
+      margin-top:14px;
+      display:block;
+      text-align:center;
+      text-decoration:none;
+      padding:14px 16px;
+      border-radius:14px;
+      border:none;
+      background:var(--green);
+      color:#fff;
+      font-weight:900;
+      font-size:16px;
+    }
   </style>
 </head>
 <body>
-  <div class="topbar">Afghani Oil</div>
+  <div class="topbar">الزيت الأفغاني</div>
 
   <div class="wrap">
     <div class="card">
       <span class="badge">${escapeHtml(title)}</span>
       <h1>${escapeHtml(message)}</h1>
 
-      ${
-        batchId
-          ? `<p>Batch: <b>${escapeHtml(batchId)}</b></p>`
-          : ``
-      }
+      ${batchId ? `<p>Batch: <b>${escapeHtml(batchId)}</b></p>` : ``}
 
       <div class="meta">
-        ${
-          usedAt
-            ? `وقت أول استخدام: <b>${escapeHtml(usedAt)}</b><br/>`
-            : ``
-        }
+        ${usedAt ? `وقت أول استخدام: <b>${escapeHtml(usedAt)}</b><br/>` : ``}
         آخر قراءة للكود: <b>${escapeHtml(lastCheckedAt || "—")}</b>
       </div>
 
       <a class="btn" href="/scan">إعادة فحص منتج</a>
-      <div class="small">إذا واجهت مشكلة، تواصل مع خدمة العملاء.</div>
     </div>
   </div>
 </body>
 </html>`;
 }
+
+  
 
 // صفحة scan بسيطة (اختيارية) — لو ما تبيها قلّي أشيلها
 app.get("/scan", (req, res) => {
@@ -93,64 +142,134 @@ app.get("/scan", (req, res) => {
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>مسح الكود</title>
+  <title>تحقق من المنتج</title>
   <style>
-    body{margin:0;background:#fff;color:#0f172a;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial}
-    .topbar{padding:14px 18px;border-bottom:1px solid #e5e7eb;text-align:center;font-weight:800}
+    :root{
+      --brown:#caa56c;     /* بني الخلفية */
+      --green:#63aa98;     /* لون الكبسة */
+      --gold:#b48a2f;      /* ذهبي العنوان */
+      --white:#ffffff;
+      --red:#dc2626;
+    }
+    body{
+      margin:0;
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;
+      background:var(--brown);
+    }
+    .topbar{
+      background:var(--white);
+      padding:18px 18px;
+      text-align:center;
+      font-weight:800;
+      font-size:34px;
+      color:var(--gold);
+      letter-spacing:.2px;
+    }
     .wrap{max-width:560px;margin:0 auto;padding:18px}
-    .card{border:1px solid #e5e7eb;border-radius:16px;padding:18px;background:#fff;box-shadow:0 10px 30px rgba(0,0,0,.06)}
-    h1{margin:0 0 8px;font-size:20px}
-    p{margin:0 0 12px;line-height:1.7;color:#334155}
-    .btn{width:100%;border:0;padding:12px 14px;border-radius:12px;background:#0f172a;color:#fff;font-weight:800;font-size:16px}
-    #reader{margin-top:12px;border-radius:14px;overflow:hidden;border:1px solid #e5e7eb}
-    .msg{margin-top:10px;font-size:14px;color:#16a34a}
-    .hint{margin-top:10px;font-size:12px;color:#64748b}
+    .card{
+      border-radius:18px;
+      padding:18px;
+      background:transparent;
+    }
+    h1{
+      margin:0 0 8px;
+      font-size:22px;
+      color:#fff;   /* تحقق من المنتج أبيض */
+      font-weight:900;
+    }
+    p{
+      margin:0 0 14px;
+      line-height:1.8;
+      color:#fff;   /* النص اللي تحته أبيض */
+      font-size:16px;
+      opacity:.95;
+    }
+    .btn{
+      width:100%;
+      border:0;
+      padding:16px 16px;
+      border-radius:14px;
+      background:var(--green); /* نفس الأخضر */
+      color:#fff;
+      font-weight:900;
+      font-size:18px;
+      cursor:pointer;
+    }
+    #reader{
+      margin-top:14px;
+      border-radius:16px;
+      overflow:hidden;
+      background:rgba(255,255,255,.12);
+      border:1px solid rgba(255,255,255,.25);
+    }
+    .msg{
+      margin-top:12px;
+      font-size:14px;
+      color:#fff; /* رسالة النجاح خليها أبيض */
+      font-weight:800;
+    }
+    .err{
+      margin-top:12px;
+      font-size:14px;
+      color:var(--red); /* رسالة الخطأ أحمر */
+      font-weight:900;
+    }
   </style>
   <script src="https://unpkg.com/html5-qrcode"></script>
 </head>
 <body>
-  <div class="topbar">Afghani Oil</div>
+  <div class="topbar">الزيت الأفغاني</div>
+
   <div class="wrap">
     <div class="card">
       <h1>تحقق من المنتج</h1>
-      <p>اضغط بدء المسح ثم وجّه الكاميرا نحو QR الموجود على العبوة.</p>
+      <p>امسح رمز QR الموجود على العبوة للتأكد من الأصالة.</p>
+
       <button id="startBtn" class="btn">بدء المسح بالكاميرا</button>
+
       <div id="reader"></div>
+
       <div id="msg" class="msg"></div>
-      <div class="hint">ملاحظة: لازم HTTPS عشان الكاميرا تشتغل.</div>
+      <div id="err" class="err"></div>
     </div>
   </div>
 
 <script>
   const startBtn = document.getElementById("startBtn");
   const msg = document.getElementById("msg");
+  const err = document.getElementById("err");
   let qr;
 
   startBtn.addEventListener("click", async () => {
     msg.textContent = "";
+    err.textContent = "";
     startBtn.disabled = true;
 
     try {
       if(!qr) qr = new Html5Qrcode("reader");
+
       const cams = await Html5Qrcode.getCameras();
-      if(!cams || cams.length === 0) throw new Error("لا توجد كاميرا");
+      if(!cams || cams.length === 0) throw new Error("no_camera");
 
       const camId = cams[cams.length - 1].id; // الخلفية غالبًا
+
       await qr.start(
         { deviceId: { exact: camId } },
         { fps: 10, qrbox: { width: 250, height: 250 } },
         async (decodedText) => {
           msg.textContent = "✅ تم قراءة الكود بنجاح… جاري التحقق";
           try { await qr.stop(); } catch(e){}
+
           const url = new URL("/verify", window.location.origin);
           url.searchParams.set("code", decodedText.trim());
           window.location.href = url.toString();
         }
       );
+
     } catch (e) {
       startBtn.disabled = false;
-      msg.style.color = "#dc2626";
-      msg.textContent = "تعذر تشغيل الكاميرا. تأكد من السماح بإذن الكاميرا وفتح الصفحة عبر HTTPS.";
+      // ✅ مثل ما طلبت حرفيًا
+      err.textContent = "تعذر تشغيل الكاميرا";
     }
   });
 </script>
