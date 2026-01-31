@@ -36,7 +36,7 @@ function renderResultPage({ title, message, type, batchId, usedAt, lastCheckedAt
   <title>تحقق من المنتج</title>
   <style>
     :root{
-      --brown:#caa56c;     /* بني الخلفية */
+      --brown:#EFDECD;     /* بني الخلفية */
       --green:#63aa98;     /* لون الكبسة */
       --gold:#b48a2f;      /* ذهبي العنوان */
       --white:#ffffff;
