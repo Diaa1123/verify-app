@@ -64,6 +64,7 @@ function renderResultPage({ title, message, type, batchId, usedAt, lastCheckedAt
       border:1px solid rgba(255,255,255,.18);
       box-shadow:0 10px 30px rgba(0,0,0,.08);
       backdrop-filter: blur(2px);
+       color:#000;
     }
     .badge{
       display:inline-block;
@@ -145,7 +146,7 @@ app.get("/scan", (req, res) => {
   <title>تحقق من المنتج</title>
   <style>
     :root{
-      --brown:#caa56c;     /* بني الخلفية */
+      --brown:#F5DEB3;     /* بني الخلفية */
       --green:#63aa98;     /* لون الكبسة */
       --gold:#b48a2f;      /* ذهبي العنوان */
       --white:#ffffff;
