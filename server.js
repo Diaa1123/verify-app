@@ -76,26 +76,29 @@ function renderResultPage({ title, message, type, batchId, usedAt, lastCheckedAt
       background:${accent};
       border:1px solid rgba(255,255,255,.25);
     }
-    h1{
-      margin:12px 0 8px;
-      font-size:22px;
-      color:#fff;
-    }
-    p{
-      margin:0 0 10px;
-      line-height:1.8;
-      font-size:16px;
-      color:#fff;
-    }
-    .meta{
-      margin-top:12px;
-      padding-top:12px;
-      border-top:1px dashed rgba(255,255,255,.35);
-      font-size:14px;
-      color:#fff;
-      line-height:1.9;
-      opacity:.95;
-    }
+   .card h1{
+  margin:12px 0 8px;
+  font-size:22px;
+  color:#000;
+}
+
+  .card p{
+  margin:0 0 10px;
+  line-height:1.8;
+  font-size:16px;
+  color:#000;
+}
+
+    .card .meta{
+  margin-top:12px;
+  padding-top:12px;
+  border-top:1px dashed rgba(0,0,0,.25);
+  font-size:14px;
+  color:#000;
+  line-height:1.9;
+  opacity:.95;
+}
+
     .btn{
       margin-top:14px;
       display:block;
