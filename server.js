@@ -146,7 +146,7 @@ body{
 </html>`;
 }
 
-// صفحة المسح
+// صفحة المسح (تبقى HTML عشان الكاميرا)
 app.get("/scan", (req, res) => {
   res.send(`<!doctype html>
 <html lang="ar" dir="rtl">
@@ -189,7 +189,7 @@ const startBtn = document.getElementById("startBtn");
 const msg = document.getElementById("msg");
 const err = document.getElementById("err");
 let qr;
-let handled = false; // ✅ يمنع تكرار القراءة
+let handled = false;
 
 startBtn.onclick = async () => {
   msg.textContent = "";
@@ -206,12 +206,11 @@ startBtn.onclick = async () => {
       { deviceId: { exact: cams[cams.length - 1].id } },
       { fps: 10, qrbox: 250 },
       async (text) => {
-        if (handled) return;      // ✅ تجاهل أي قراءة ثانية
+        if (handled) return;
         handled = true;
 
         msg.textContent = "تم قراءة الكود... جاري التحقق";
 
-        // ✅ استخرج UUID حتى لو النص رابط كامل
         const m = String(text).match(
           /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i
         );
@@ -224,10 +223,10 @@ startBtn.onclick = async () => {
           return;
         }
 
-        // ✅ أوقف الكاميرا قبل التحويل (مهم جدًا)
         try { await qr.stop(); } catch(e){}
 
-        window.location.href = "/verify?code=" + m[0];
+        // ✅ توجيه مباشر للـ API بدل HTML
+        window.location.href = "/api/verify?code=" + encodeURIComponent(m[0]);
       }
     );
   } catch (e) {
@@ -240,18 +239,15 @@ startBtn.onclick = async () => {
 </html>`);
 });
 
-// Verify
-app.get("/verify", async (req, res) => {
+/* ✅ API Verify (JSON فقط) */
+app.get("/api/verify", async (req, res) => {
   const code = extractUuid(req.query.code);
 
   if (!code) {
-    return res.send(
-      renderResultPage({
-        title: "❌ كود غير صحيح",
-        message: "تعذر قراءة الكود",
-        type: "bad",
-      })
-    );
+    return res.status(400).json({
+      status: "bad",
+      message: "Invalid code",
+    });
   }
 
   try {
@@ -261,13 +257,10 @@ app.get("/verify", async (req, res) => {
     );
 
     if (!exists.rowCount) {
-      return res.send(
-        renderResultPage({
-          title: "❌ كود غير صحيح",
-          message: "الكود غير موجود في النظام",
-          type: "bad",
-        })
-      );
+      return res.status(404).json({
+        status: "invalid",
+        message: "Code not found",
+      });
     }
 
     // تحديث آخر قراءة دائمًا
@@ -288,45 +281,44 @@ app.get("/verify", async (req, res) => {
       [code]
     );
 
-   const formatOptions = {
-  timeZone: "Asia/Riyadh",
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit",
-  hour: "2-digit",
-  minute: "2-digit",
-  second: "2-digit",
-  hour12: true, // لو تبي AM/PM
-};
+    const formatOptions = {
+      timeZone: "Asia/Riyadh",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: true,
+    };
 
-const usedAt = last.rows[0].used_at
-  ? new Date(last.rows[0].used_at).toLocaleString("en-US", formatOptions)
-  : null;
+    const usedAt = last.rows[0].used_at
+      ? new Date(last.rows[0].used_at).toLocaleString("en-US", formatOptions)
+      : null;
 
-const lastCheckedAt = last.rows[0].last_checked_at
-  ? new Date(last.rows[0].last_checked_at).toLocaleString("en-US", formatOptions)
-  : "—";
+    const lastCheckedAt = last.rows[0].last_checked_at
+      ? new Date(last.rows[0].last_checked_at).toLocaleString("en-US", formatOptions)
+      : "—";
 
-
-    return res.send(
-      renderResultPage({
-        title: first.rowCount ? "✅ المنتج أصلي" : "⚠️ مستخدم سابقًا",
-        message: first.rowCount ? "تم تفعيل الكود بنجاح" : "تم استخدام هذا الكود سابقًا",
-        type: first.rowCount ? "good" : "warn",
-        batchId: exists.rows[0].batch_id,
-        usedAt,
-        lastCheckedAt,
-      })
-    );
+    return res.json({
+      status: first.rowCount ? "valid" : "used",
+      message: first.rowCount ? "Code verified successfully" : "Code already used",
+      batch_id: exists.rows[0].batch_id,
+      used_at: usedAt,
+      last_checked_at: lastCheckedAt,
+    });
   } catch (e) {
-    return res.send(
-      renderResultPage({
-        title: "⚠️ خطأ",
-        message: "حدث خطأ غير متوقع",
-        type: "warn",
-      })
-    );
+    return res.status(500).json({
+      status: "error",
+      message: "Server error",
+    });
   }
+});
+
+/* ✅ /verify الآن مجرد توجيه للـ API */
+app.get("/verify", (req, res) => {
+  const code = req.query.code || "";
+  return res.redirect(302, "/api/verify?code=" + encodeURIComponent(code));
 });
 
 const PORT = process.env.PORT || 3000;
