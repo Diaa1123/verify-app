@@ -3,6 +3,26 @@ const { Pool } = require("pg");
 
 const app = express();
 
+const cors = require("cors");
+
+const allowedOrigins = new Set([
+  "https://afghanioil.com",
+  "https://www.afghanioil.com",
+]);
+
+app.use(cors({
+  origin: (origin, cb) => {
+    if (!origin) return cb(null, true); // يسمح لـ Postman / curl
+    if (origin.endsWith(".myshopify.com")) return cb(null, true); // اختبارات Shopify
+    if (allowedOrigins.has(origin)) return cb(null, true); // موقعك الرئيسي
+    return cb(new Error("Not allowed by CORS: " + origin));
+  },
+  methods: ["GET", "OPTIONS"],
+}));
+
+app.options("*", cors());
+
+
 // PostgreSQL connection
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
