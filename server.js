@@ -5,8 +5,6 @@ const app = express();
 
 const cors = require("cors");
 
-const cors = require("cors");
-
 const allowedOrigins = new Set([
   "https://afghanioil.com",
   "https://www.afghanioil.com",
