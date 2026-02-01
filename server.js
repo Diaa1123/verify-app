@@ -5,6 +5,8 @@ const app = express();
 
 const cors = require("cors");
 
+const cors = require("cors");
+
 const allowedOrigins = new Set([
   "https://afghanioil.com",
   "https://www.afghanioil.com",
@@ -12,15 +14,16 @@ const allowedOrigins = new Set([
 
 app.use(cors({
   origin: (origin, cb) => {
-    if (!origin) return cb(null, true); // يسمح لـ Postman / curl
-    if (origin.endsWith(".myshopify.com")) return cb(null, true); // اختبارات Shopify
-    if (allowedOrigins.has(origin)) return cb(null, true); // موقعك الرئيسي
+    if (!origin) return cb(null, true);
+    if (origin.endsWith(".myshopify.com")) return cb(null, true);
+    if (allowedOrigins.has(origin)) return cb(null, true);
     return cb(new Error("Not allowed by CORS: " + origin));
   },
   methods: ["GET", "OPTIONS"],
 }));
 
-app.options("*", cors());
+
+app.options("/api/verify", cors());
 
 
 // PostgreSQL connection
